@@ -1,21 +1,26 @@
 import Foundation
 
-/// Heuristic Markdown sniffer. One strong signal (heading, code fence, table,
-/// link, task box) is enough; otherwise it takes two different weak signals.
+/// Heuristic Markdown sniffer. One strong signal is enough; otherwise it takes
+/// two different weak signals. Tuned to keep code (shell/Python comments,
+/// `**kwargs`, `arr[i](x)`) from being mistaken for Markdown.
 enum Markdown {
     private static let strong = [
-        #"(?m)^#{1,6} \S"#,                         // # Heading
-        #"(?m)^\s*(```|~~~)"#,                      // code fence
-        #"(?m)^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$"#, // table separator
-        #"\[[^\]\n]+\]\((https?://|/|\.|#)[^)\s]*\)"#,  // [text](url)
-        #"(?m)^\s*[-*+] \[[ xX]\] "#,               // - [ ] task
+        #"(?m)^#{2,6}[ \t]+\S"#,                            // ## Heading (level 2+)
+        #"(?m)^#[ \t]+\S[^\n]*\n[ \t]*\n"#,                 // # Heading followed by a blank line
+        #"(?m)^\S[^\n]*\n={3,}[ \t]*$"#,                    // Setext heading underlined with ===
+        #"(?m)^[ \t]*(```|~~~)"#,                           // code fence
+        #"(?m)^[ \t]*\|?[ \t]*:?-+:?[ \t]*(\|[ \t]*:?-+:?[ \t]*)+\|?[ \t]*$"#, // |---|---|
+        #"(?m)^[ \t]*\|[ \t]*:?-{3,}:?[ \t]*\|[ \t]*$"#,    // |---| (one column)
+        #"(?<![\w\]])\[[^\]\n]+\]\([^)\s]+\)"#,             // [text](url), not arr[i](x)
+        #"(?m)^[ \t]*[-*+][ \t]+\[[ xX]\][ \t]"#,           // - [ ] task
     ]
     private static let weak = [
-        #"(?m)^\s*[-*+] \S"#,                       // bullet
-        #"(?m)^\s*\d+\. \S"#,                       // numbered list
-        #"(\*\*|__)[^\s*_][^\n]*?(\*\*|__)"#,       // **bold**
-        #"(?m)^> "#,                                // blockquote
-        #"`[^`\n]+`"#,                              // `inline code`
+        #"(?m)^#[ \t]+\S"#,                                 // # Heading (or a code comment)
+        #"(?m)^[ \t]*[-*+][ \t]+\S"#,                       // bullet
+        #"(?m)^[ \t]*\d+\.[ \t]+\S"#,                       // numbered list
+        #"(?<![\w*(])\*\*[^\s*][^*\n]*?(?<=\S)\*\*(?![\w*])"#, // **bold**, not f(**kw)
+        #"(?m)^>[ \t]"#,                                    // blockquote
+        #"`[^`\n]+`"#,                                      // `inline code`
     ]
 
     static func looksLikeMarkdown(_ text: String) -> Bool {
